@@ -1,0 +1,42 @@
+# Contexto del proyecto
+
+- Objetivo: aplicación **Android TV receptora de AirPlay**, con prioridad en **clonación de pantalla**, no solo reproducción de enlaces o envío de contenido.
+- Debe ofrecer **PiP y pantalla completa**, con conexión sencilla y estable e interfaz de inspiración Apple, usable con el mando del televisor.
+
+## Compilación y estructura
+
+- JDK 21, SDK 37, Build Tools 37.0.0, NDK 27.0.12077973 y CMake 3.22.1. En este Mac están instalados en `~/Library/Java/JavaVirtualMachines/` y `~/Library/Android/sdk`; `local.properties` (ignorado) apunta al SDK. APK debug, pruebas y lint verificados; validación en TV aún pendiente.
+- Preparar fuentes con `python3 scripts/bootstrap_native.py` **antes** de `./gradlew :app:assembleDebug`. No usar submódulos del repositorio raíz: las cuatro dependencias nativas se fijan en `native-dependencies.json` y se descargan a `app/src/main/cpp/third_party/` (ignorado).
+- Verificación sin Android: `python3 -m unittest discover -s scripts/tests -v`. Con toolchain: `./gradlew :app:compileDebugKotlin :app:testDebugUnitTest :app:lintDebug`; prueba enfocada: `./gradlew :app:testDebugUnitTest --tests 'io.github.jqssun.airplay.PresentationPolicyTest'`.
+- `app` es el único módulo. `MainActivity` controla permisos/PiP; `AirPlayService` posee receptor, decodificadores y overlay; `ui/MainScreen.kt` coordina presentación y `ui/ReceiverHome.kt` es la portada TV.
+- La instancia RAOP principal gestiona un emisor: `Prefs.ALLOW_NEW_CONN=true` reemplaza la anterior; false la rechaza. Dual usa `SecondaryAirPlayService` (otra instancia nativa/callback/decoder/ID y puerto +1); no confundir conexiones HTTP internas (`connectionCount`) con emisores de mirror. Cada panel de vídeo debe enlazar su Surface al renderer de la instancia correspondiente; seleccionar audio no debe modificar vídeo de la otra.
+- El applicationId es `io.github.airplaypip`, pero namespace, paquetes Kotlin y símbolos JNI conservan `io.github.jqssun.airplay`. No renombrar solo un lado: JNI y reglas ProGuard dependen de esos nombres.
+- Gradle llama a `scripts/apply_native_patches.py` antes de configurar CMake. Los parches se superponen: se aplican como un único diff, no individualmente ni mediante un reset del checkout. No editar las fuentes ignoradas como si fueran cambios distribuibles; conservar cambios nativos en parches.
+- La ventana flotante es solo para mirroring y pertenece al servicio. No abrir un segundo decodificador; transferir la superficie del renderer existente. El menú software arranca enfocado; «Ocultar menú» deja el botón compacto con foco y OK lo reabre. «Devolver mando a la TV» libera foco; Inicio Android colapsa overlay antes de abrir Home. Al volver a MainActivity, restaurar superficie y decoder; al desconectar, retirar overlay.
+- `FloatingControlsActivity` usa Theme.NoDisplay y un task separado: debe terminar en onCreate y nunca abrir MainActivity para seleccionar/mover el PiP sobre HDMI. Los accesos son notificación, launcher y TileService opcional; no interceptar teclas globales.
+- `android:taskAffinity` debe tener formato de paquete: usar `${applicationId}.floatingcontrols`, nunca `floating-controls`. El guion de 0.1.1 causaba rechazo del paquete en Android aunque aapt, firma y lint pasaban. `preBuild` ejecuta `scripts/validate_manifest.py` para prevenirlo.
+- El actualizador LAN de 0.1.11 vive en `update/ApkUpdateServer.kt`: opt-in, puerto efímero, código numérico de 4 dígitos con lockout tras 5 fallos o modo sin código explícito, solo clientes private/site-local/link-local, Content-Length acotado y sin chunked. No relajar validación de packageId, versión estrictamente mayor ni certificados exactos; nunca ejecutar APK ni instalar silenciosamente, entregar solo vía FileProvider + actividad explícita de PackageInstaller. HTTP no cifra: mantener aviso LAN confiable.
+- En el actualizador, `MainActivity` debe iniciar PackageInstaller mediante `ActivityResultLauncher` desde acción explícita del usuario; no lanzar UI desde el hilo HTTP/Service. Conservar el APK validado si cancela, limpiar al confirmar éxito y conservar `installReady` al detener el listener.
+- `floating_renderer` elige SurfaceView (predeterminado HDMI) o TextureView con FLAG_HARDWARE_ACCELERATED. Recrear solo la salida ante cambios de pantalla; no reiniciar sesión/códec por mover la ventana. El reporte HDMI sigue pendiente de validación física; ver `docs/TV_TEST_PLAN.md`.
+- 0.1.3 añade `software`: readback GL de hasta 480 px/10 FPS y Canvas sin aceleración de ventana; mantiene el decodificador/GPU fuera de pantalla, no es decodificación por CPU. Los controles usan otra ventana software. RX/DEC/OUT describen buffers de la app, nunca certifican presentación física en HDMI.
+- Caso objetivo reportado: TCL C715 con Android TV 11; 0.1.2 seguía congelando vídeo sobre HDMI con audio activo. No declarar resuelto sin repetir ese caso; el panel incluye diagnóstico y acceso diferido desde la propia app.
+- Fotos de 0.1.3: RX 27–30, DEC=0, OUT=0 en SurfaceView y Canvas. Investigar decodificador/espera de IDR, no asumir que es solo composición. `video_decoder=software` (0.1.4) exige H.264 software sin fallback a VPU; es distinto de `floating_renderer=software`. El perfil 720p/24 reinicia el receptor y exige reconectar al emisor; nunca intercambiar códecs a mitad de GOP.
+- Evidencia posterior: software funciona pero usuario reporta ~5 FPS; hardware es `OMX.realtek.video.decoder`, DEC=0 e IllegalStateException vacía. Desde 0.1.5 Realtek usa formato básico sin tuning vendor incluso en Auto; `hardware_compat` es hardware H.264 estricto sin fallback SW. No dar por resuelto ni inferir ERROR_RECLAIMED sin código; exportar operación/pila y distinguir IDR de SPS y errores históricos de la generación actual.
+- `DUAL_RECEIVER` usa `SecondaryAirPlayService`: nombres/MAC/llaves/puertos/decoders/audio-engine separados. Dual es experimental, la TCL C715 aún necesita carga real de dos streams; audio activo se enruta por `DualAudioPolicy` y el PiP muestra TextureViews para composición. No compartir superficie ni decoder.
+- `AUDIO_OUTPUT_DEVICE` se pasa a Oboe `AudioStreamBuilder.setDeviceId`; es preferencia por pista, no garantía de Android TV para Bluetooth/HDMI simultáneo. Mantener el ID 0 como predeterminado y probar/revertir en firmware real.
+- `PIP_SOFTWARE_DECODER` cambia MediaCodec al entrar/salir de PiP solo cuando `VIDEO_DECODER=auto`; al hacer switch detiene el codec y descarta P/B hasta IDR/IRAP. Si emisor/códec no permite random access o no hay software decoder, diagnosticar sin inventar frames ni prometer transición instantánea.
+
+## Referencias y precauciones
+
+- Base AirPlay: https://github.com/jqssun/android-airplay-server. Su implementación usa UxPlay en C mediante JNI y MediaCodec/SurfaceView para mirroring; ya anuncia soporte PiP. Revisar ese soporte antes de incorporar otra solución de ventanas.
+- La referencia https://github.com/mhoogenbosch/ha-pipup es una **integración de Home Assistant**, no la app Android. El código de ventanas Android está en https://github.com/mhoogenbosch/PiPup.
+- No confundir PiP del sistema con una ventana superpuesta al estilo PiPup: esta última requiere permiso de superposición. La elección debe quedar explícita; no asumir permisos ni disponibilidad en todos los televisores.
+- El receptor AirPlay de referencia declara GPLv3; no asumir que la licencia MIT de `ha-pipup` cubre el código Android de PiPup ni el de AirPlay. Revisar las licencias del código y dependencias que se reutilicen.
+- Esta implementación adapta la revisión indicada en `THIRD_PARTY_NOTICES.md`, bajo GPLv3. PiPup es referencia conceptual, no dependencia ni código incorporado.
+
+## Validación del objetivo
+
+- Para comprobar descubrimiento y conexión, usar emisor Apple y TV en la misma subred, como requiere la referencia AirPlay; no confundir un problema de descubrimiento de red con uno de decodificación.
+- Verificar mirroring real y la transición PiP ↔ pantalla completa durante una sesión, además de desconexión y reconexión. Una demo con un vídeo local no valida recepción AirPlay.
+- El upstream AirPlay no soporta contenido DRM (por ejemplo, Apple TV); no prometer esa compatibilidad ni usarla como prueba de mirroring.
+- `docs/TV_TEST_PLAN.md` es la matriz pendiente de pruebas físicas. Las pruebas Python comprueban preparación de fuentes, no recepción AirPlay; no marcar estabilidad o compatibilidad como verificadas sin medirlas en TV.

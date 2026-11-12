@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tab_overview">Conexión</string>
+    <string name="tab_logs">Diagnóstico</string>
+    <string name="tab_settings">Ajustes</string>
+    <string name="notification_channel">Receptor AirPlay</string>
+    <string name="notification_title">AirPlay PiP en ejecución</string>
+    <string name="notification_text">Esperando conexiones AirPlay</string>
+    <string name="stop_service">Detener</string>
+    <string name="server_stopped">Receptor detenido</string>
+    <string name="waiting_for_connection">Esperando conexión…</string>
+    <string name="waiting_for_playback">Inicia la reproducción en el dispositivo emisor…</string>
+    <string name="error_starting_server">No se pudo iniciar el receptor</string>
+    <string name="connected_count">%d conectados</string>
+    <string name="error_label">Error</string>
+    <string name="stopped_label">Detenido</string>
+    <string name="btn_start">Iniciar</string>
+    <string name="btn_stop">Detener</string>
+    <string name="btn_allow">Permitir</string>
+    <string name="btn_open_settings">Abrir ajustes</string>
+    <string name="local_network_label">Se requiere acceso a la red local</string>
+    <string name="local_network_desc">Permite el acceso a la red local para que tus dispositivos encuentren esta TV</string>
+    <string name="cd_pip">Imagen en imagen</string>
+    <string name="cd_fullscreen">Pantalla completa</string>
+    <string name="cd_exit_fullscreen">Salir de pantalla completa</string>
+    <string name="dialog_pin_title">PIN de AirPlay</string>
+    <string name="btn_ok">Aceptar</string>
+    <string name="btn_export">Exportar</string>
+    <string name="btn_clear">Limpiar</string>
+    <string name="section_server">Receptor</string>
+    <string name="section_connection">Conexión</string>
+    <string name="section_display">Pantalla</string>
+    <string name="section_decode">Decodificación</string>
+    <string name="section_developer">Opciones avanzadas</string>
+    <string name="setting_server_name">Nombre del receptor</string>
+    <string name="setting_server_port">Puerto del receptor</string>
+    <string name="setting_auto_fullscreen">Abrir en pantalla completa</string>
+    <string name="setting_auto_fullscreen_desc">Al comenzar la duplicación de pantalla</string>
+    <string name="setting_require_pin">Solicitar PIN (beta)</string>
+    <string name="setting_require_pin_desc">Solicitar un PIN de cuatro dígitos para cada nueva conexión</string>
+</resources>

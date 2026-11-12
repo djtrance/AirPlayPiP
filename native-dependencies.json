@@ -1,0 +1,28 @@
+{
+  "upstream": {
+    "url": "https://github.com/jqssun/android-airplay-server",
+    "commit": "a46cca0a6a1274e9e33c0e750f0f1c1eb1d881ea"
+  },
+  "dependencies": [
+    {
+      "name": "UxPlay",
+      "url": "https://github.com/FDH2/UxPlay.git",
+      "commit": "df67c212a433cf6dda3676dd40c097900d24e645"
+    },
+    {
+      "name": "ffmpeg",
+      "url": "https://github.com/FFmpeg/FFmpeg.git",
+      "commit": "38b88335f99e76ed89ff3c93f877fdefce736c13"
+    },
+    {
+      "name": "libplist",
+      "url": "https://github.com/libimobiledevice/libplist.git",
+      "commit": "f41b1ea67045e0c09339974d83e389972d84f166"
+    },
+    {
+      "name": "openssl-cmake",
+      "url": "https://github.com/viaduck/openssl-cmake.git",
+      "commit": "4edd36a8dab5f85a8f92650b5bdf6e0cab13aab8"
+    }
+  ]
+}
